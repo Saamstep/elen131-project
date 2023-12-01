@@ -3,7 +3,7 @@
 # <!-- Students: Samuel Stephen Ben Shiverdaker Zack Boyle -->
 # <!-- Lab: FINAL PROJET-->
 # <!-- Date: Fall 2023-->
-# <!-- Acknowledgements: MoveIt -->
+# <!-- Acknowledgements: MoveIt Tutorial Code -->
 
 # Software License Agreement (BSD License)
 #
@@ -97,12 +97,14 @@ def all_close(goal, actual, tolerance):
         # phi = angle between orientations
         cos_phi_half = fabs(qx0 * qx1 + qy0 * qy1 + qz0 * qz1 + qw0 * qw1)
         return d <= tolerance and cos_phi_half >= cos(tolerance / 2.0)
-
+ 
     return True
 
+# Helper function to convert an angle to joint goal value
 def angleToJoint(angle):
     return (angle/360)*tau
 
+# Helper function to convert degrees to radians
 def degToRad(deg):
     return (pi/180)*deg
 
@@ -179,6 +181,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         self.eef_link = eef_link
         self.group_names = group_names
         
+    # Function to set the joint positions manually, utilized for the moves in the demo
     def joint_goal(self, one=0, two=-45, three=0, four=-135, five=0, six=90, seven=45):
 
         ## Planning to a Joint Goal
@@ -202,6 +205,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         current_joints = self.move_group.get_current_joint_values()
         return all_close(joint_goal, current_joints, 0.01)
     
+    # Control just the end effector angle on: joint 6.
     def setEefAngle(self, angle=90):
         joint_goal = self.move_group.get_current_joint_values()
         joint_goal[5] = angleToJoint(angle)
@@ -215,118 +219,6 @@ class MoveGroupPythonInterfaceTutorial(object):
         # For testing:
         current_joints = self.move_group.get_current_joint_values()
         return all_close(joint_goal, current_joints, 0.01)
-      
-    def plan_cartesian_path(self, scale=1, x=0, y=0, z=0):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
-        move_group = self.move_group
-
-        ## BEGIN_SUB_TUTORIAL plan_cartesian_path
-        ##
-        ## Cartesian Paths
-        ## ^^^^^^^^^^^^^^^
-        ## You can plan a Cartesian path directly by specifying a list of waypoints
-        ## for the end-effector to go through. If executing  interactively in a
-        ## Python shell, set scale = 1.0.cartPathPlan, fraction] = viz.plan_cartesian_path(1, 0, -1, 0)
-        ##
-        waypoints = []
-
-        wpose = move_group.get_current_pose().pose
-        wpose.position.z += scale * z  # First move up (z)
-        wpose.position.y += scale * y  # and sideways (y)
-        wpose.position.x += scale * x
-        waypoints.append(copy.deepcopy(wpose))
-        
-        # wpose.position.z -= scale * 0.3  # Second move forward/backwards in (x)
-        # waypoints.append(copy.deepcopy(wpose))
-
-        # wpose.position.y -= scale * 0.7  # Third move sideways (y)
-        # # waypoints.append(copy.deepcopy(wpose))
-
-        # wpose.position.y += scale * 0.7  # Third move sideways (y)
-        # # waypoints.append(copy.deepcopy(wpose))
-
-        # # We want the Cartesian path to be interpolated at a resolution of 1 cm
-        # # which is why we will specify 0.01 as the eef_step in Cartesian
-        # # translation.  We will disable the jump threshold by setting it to 0.0,
-        # # ignoring the check for infeasible jumps in joint space, which is sufficient
-        # # for this tutorial.
-        (plan, fraction) = move_group.compute_cartesian_path(
-            waypoints, 0.01, 9.0  # waypoints to follow  # eef_step
-        )  # jump_threshold
-
-        # Note: We are just planning, not asking move_group to actually move the robot yet:
-        return plan, fraction
-
-        ## END_SUB_TUTORIAL
-
-    def plan_solar_sweep(self):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
-        move_group = self.move_group
-
-        ## BEGIN_SUB_TUTORIAL plan_cartesian_path
-        ##
-        ## Cartesian Paths
-        ## ^^^^^^^^^^^^^^^
-        ## You can plan a Cartesian path directly by specifying a list of waypoints
-        ## for the end-effector to go through. If executing  interactively in a
-        ## Python shell, set scale = 1.0.cartPathPlan, fraction] = viz.plan_cartesian_path(1, 0, -1, 0)
-        ##
-        waypoints = []
-
-        print("SOLAR_SWEEP")
-
-        wpose = move_group.get_current_pose().pose
-        wpose.position.z += 0.05  # First move up (z)
-        wpose.position.y += 0.08  # and sideways (y)
-        wpose.position.x += 0.07
-        move_group.set_pose_target(wpose)
-
-        plan = move_group.go(wait=True)
-
-        waypoints.append(copy.deepcopy(wpose))
-
-        sweep_height = 0.02
-
-        for i in range(1, 1):
-            tpose = copy.deepcopy(wpose)
-            if(i%2 == 0):
-                tpose.position.y += 0.1     
-                tpose.position.z -= sweep_height
-            else:
-                tpose.position.y -= 0.1 
-                tpose.position.z -= sweep_height
-            waypoints.append(tpose)
-        
-        (plan, fraction) = move_group.compute_cartesian_path(
-            waypoints, 0.01, 1.0, True  # waypoints to follow  # eef_step
-        )  # jump_threshold
-
-        self.move_group.execute(plan, wait=True)
-
-        # Note: We are just planning, not asking move_group to actually move the robot yet:
-        return plan, fraction
-
-    def execute_plan(self, plan):
-        # Copy class variables to local variables to make the web tutorials more clear.
-        # In practice, you should use the class variables directly unless you have a good
-        # reason not to.
-        move_group = self.move_group
-
-        ## BEGIN_SUB_TUTORIAL execute_plan
-        ##
-        ## Executing a Plan
-        ## ^^^^^^^^^^^^^^^^
-        ## Use execute if you would like the robot to follow
-        ## the plan that has already been computed:
-        move_group.execute(plan, wait=True)
-
-        ## **Note:** The robot's current joint state must be within some tolerance of the
-        ## first waypoint in the `RobotTrajectory`_ or ``execute()`` will fail
-        ## END_SUB_TUTORIAL
 
     def wait_for_state_update(
         self, box_is_known=False, box_is_attached=False, timeout=4
@@ -335,7 +227,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         # In practice, you should use the class variables directly unless you have a good
         # reason not to.
         box_name = self.box_name
-        scene = self.scene
+        
 
         ## BEGIN_SUB_TUTORIAL wait_for_scene_update
         ##
@@ -355,12 +247,12 @@ class MoveGroupPythonInterfaceTutorial(object):
         seconds = rospy.get_time()
         while (seconds - start < timeout) and not rospy.is_shutdown():
             # Test if the box is in attached objects
-            attached_objects = scene.get_attached_objects([box_name])
+            attached_objects = self.scene.get_attached_objects([box_name])
             is_attached = len(attached_objects.keys()) > 0
 
             # Test if the box is in the scene.
             # Note that attaching the box will remove it from known_objects
-            is_known = box_name in scene.get_known_object_names()
+            is_known = box_name in self.scene.get_known_object_names()
 
             # Test if we are in the expected state
             if (box_is_attached == is_attached) and (box_is_known == is_known):
@@ -373,13 +265,13 @@ class MoveGroupPythonInterfaceTutorial(object):
         # If we exited the while loop without returning then we timed out
         return False
         ## END_SUB_TUTORIALEND_SUB_TUTORIAL
-
+        
+    # Clear all the objects from the world
     def removeEverythingFromTheWorld(self, timeout=4):
         print("Removing all elements from the world...")
-        self.scene.remove_world_object('table2')
-        self.scene.remove_world_object('table1')
-        self.scene.remove_world_object('table1')
-        # self.scene.remove_world_object('obj')
+        objects = ['table1', 'table2', 'eefBase', 'eefWiper', 'roller1']
+        for obj in objects:
+            self.scene.remove_world_object(obj)
         # We wait for the planning scene to update.
         return self.wait_for_state_update(
             box_is_attached=False, box_is_known=False, timeout=timeout
@@ -387,7 +279,8 @@ class MoveGroupPythonInterfaceTutorial(object):
     
     def buildSolarPanel(self, timeout=4):
         # ==============================
-        #
+        # Create objects in the world
+        # ==============================
         
         print("Building terrain...")
         box1_pose = geometry_msgs.msg.PoseStamped()
@@ -426,15 +319,13 @@ class MoveGroupPythonInterfaceTutorial(object):
         box4_pose.pose.position.y = 0.0
         box4_pose.pose.position.z = 0.12
 
+        self.scene.add_box('eefWiper', box4_pose, size=(0.1, 0.3, 0.01))
+
         roller1_pose = geometry_msgs.msg.PoseStamped()
         roller1_pose.header.frame_id = 'panda_hand'
         roller1_pose.pose.position.x = 0.0
         roller1_pose.pose.position.y = 0.0
-        roller1_pose.pose.position.z = 0.135
-
-        self.scene.add_box('eefBase', box3_pose, size=(0.07, 0.06, 0.05))    
-
-        self.scene.add_box('eefWiper', box4_pose, size=(0.1, 0.3, 0.01))
+        roller1_pose.pose.position.z = 0.135     
 
         self.scene.add_box('roller1', roller1_pose, size=(0.03, 0.3, 0.02))
     
@@ -444,7 +335,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         # reason not to.
         box_name = self.box_name
         robot = self.robot
-        scene = self.scene
+        
         eef_link = self.eef_link
         group_names = self.group_names
 
@@ -460,9 +351,9 @@ class MoveGroupPythonInterfaceTutorial(object):
         ## you should change this value to the name of your end effector group name.
         grasping_group = "panda_hand"
         touch_links = robot.get_link_names(group=grasping_group)
-        scene.attach_box(eef_link, 'eefBase', touch_links=touch_links)
-        scene.attach_box(eef_link, 'eefWiper', touch_links=touch_links)
-        scene.attach_box(eef_link, 'roller1', touch_links=touch_links)
+        self.scene.attach_box(eef_link, 'eefBase', touch_links=touch_links)
+        self.scene.attach_box(eef_link, 'eefWiper', touch_links=touch_links)
+        self.scene.attach_box(eef_link, 'roller1', touch_links=touch_links)
         ## END_SUB_TUTORIAL
 
         # We wait for the planning scene to update.
@@ -475,7 +366,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         # In practice, you should use the class variables directly unless you have a good
         # reason not to.
         box_name = 'obj'
-        scene = self.scene
+        
         eef_link = self.eef_link
 
         ## BEGIN_SUB_TUTORIAL detach_object
@@ -483,7 +374,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         ## Detaching Objects from the Robot
         ## ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
         ## We can also detach and remove the object from the planning scene:
-        scene.remove_attached_object(eef_link, name=box_name)
+        self.scene.remove_attached_object(eef_link, name=box_name)
         ## END_SUB_TUTORIAL
 
         # We wait for the planning scene to update.
@@ -505,41 +396,25 @@ def main():
 
         viz.attach_box()
 
-        # Go to start position     
+        # Go to start position and wait for further instruction    
         viz.joint_goal()
-
         rospy.sleep(1)
 
-        # viz.setEefAngle(115)
+        # Move arm all the way up
         viz.joint_goal(0, -45, 0, -121, -5, 90, 45)
         
+        # Move to the top of the solar panel
         viz.joint_goal(0, -2, 0, -95, 0, 132, 45)
 
+        # Make sure we stay as close to panel as possible
         viz.joint_goal(0, -22, 0, -120, 0, 135, 45)
-
         viz.joint_goal(0, -34, 0, -129, 0, 120, 45)
-        
-        # Go to top left of the panel
-        # [cartPathPlan, fraction] = viz.plan_cartesian_path(1, 1.0, 0.9, 0.6)
-        # viz.execute_plan(cartPathPlan)
 
+        # Finish move at the bottom of the panel
         viz.joint_goal(0, -51, 0, -144, 0, 112, 45)
-  
-        # Zig-zag downward until bottom of panel is reached
-        # viz.plan_solar_sweep()
-        # viz.execute_plan(cartPathPlan)
-
-        
-
-        # [cartPathPlan2, fraction] = viz.plan_cartesian_path(1, 1.0, 0.45, 0.3)
-        # viz.execute_plan(cartPathPlan2)
-     
-
-        # end of zig-zag
 
         # Reset position
         viz.joint_goal()
-
 
         print("DONE")
 
