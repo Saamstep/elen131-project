@@ -178,17 +178,6 @@ class MoveGroupPythonInterfaceTutorial(object):
         self.planning_frame = planning_frame
         self.eef_link = eef_link
         self.group_names = group_names
-  
-    def attachEef(self, timeout=4):
-        grasping_group = "panda_hand"
-        touch_links = self.robot.get_link_names(group=grasping_group)
-        self.scene.attach_box(self.eef_link, 'obj', touch_links=touch_links)
-        ## END_SUB_TUTORIAL
-
-        # We wait for the planning scene to update.
-        return self.wait_for_state_update(
-            box_is_attached=True, box_is_known=False, timeout=timeout
-        )
         
     def joint_goal(self, one=0, two=-45, three=0, four=-135, five=0, six=90, seven=45):
 
@@ -212,6 +201,20 @@ class MoveGroupPythonInterfaceTutorial(object):
         # For testing:
         current_joints = self.move_group.get_current_joint_values()
         return all_close(joint_goal, current_joints, 0.01)
+    
+    def setEefAngle(self, angle=90):
+        joint_goal = self.move_group.get_current_joint_values()
+        joint_goal[5] = angleToJoint(angle)
+        # The go command can be called with joint values, poses, or without any
+        # parameters if you have already set the pose or joint target for the group
+        self.move_group.go(joint_goal, wait=True)
+
+        # Calling ``stop()`` ensures that there is no residual movement
+        self.move_group.stop()
+
+        # For testing:
+        current_joints = self.move_group.get_current_joint_values()
+        return all_close(joint_goal, current_joints, 0.01)
       
     def plan_cartesian_path(self, scale=1, x=0, y=0, z=0):
         # Copy class variables to local variables to make the web tutorials more clear.
@@ -225,7 +228,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         ## ^^^^^^^^^^^^^^^
         ## You can plan a Cartesian path directly by specifying a list of waypoints
         ## for the end-effector to go through. If executing  interactively in a
-        ## Python shell, set scale = 1.0.
+        ## Python shell, set scale = 1.0.cartPathPlan, fraction] = viz.plan_cartesian_path(1, 0, -1, 0)
         ##
         waypoints = []
 
@@ -258,31 +261,54 @@ class MoveGroupPythonInterfaceTutorial(object):
 
         ## END_SUB_TUTORIAL
 
-    def display_trajectory(self, plan):
+    def plan_solar_sweep(self):
         # Copy class variables to local variables to make the web tutorials more clear.
         # In practice, you should use the class variables directly unless you have a good
         # reason not to.
-        robot = self.robot
-        display_trajectory_publisher = self.display_trajectory_publisher
+        move_group = self.move_group
 
-        ## BEGIN_SUB_TUTORIAL display_trajectory
+        ## BEGIN_SUB_TUTORIAL plan_cartesian_path
         ##
-        ## Displaying a Trajectory
-        ## ^^^^^^^^^^^^^^^^^^^^^^^
-        ## You can ask RViz to visualize a plan (aka trajectory) for you. But the
-        ## group.plan() method does this automatically so this is not that useful
-        ## here (it just displays the same trajectory again):
+        ## Cartesian Paths
+        ## ^^^^^^^^^^^^^^^
+        ## You can plan a Cartesian path directly by specifying a list of waypoints
+        ## for the end-effector to go through. If executing  interactively in a
+        ## Python shell, set scale = 1.0.cartPathPlan, fraction] = viz.plan_cartesian_path(1, 0, -1, 0)
         ##
-        ## A `DisplayTrajectory`_ msg has two primary fields, trajectory_start and trajectory.
-        ## We populate the trajectory_start with our current robot state to copy over
-        ## any AttachedCollisionObjects and add our plan to the trajectory.
-        display_trajectory = moveit_msgs.msg.DisplayTrajectory()
-        display_trajectory.trajectory_start = robot.get_current_state()
-        display_trajectory.trajectory.append(plan)
-        # Publish
-        display_trajectory_publisher.publish(display_trajectory)
+        waypoints = []
 
-        ## END_SUB_TUTORIAL
+        print("SOLAR_SWEEP")
+
+        wpose = move_group.get_current_pose().pose
+        wpose.position.z += 0.05  # First move up (z)
+        wpose.position.y += 0.08  # and sideways (y)
+        wpose.position.x += 0.07
+        move_group.set_pose_target(wpose)
+
+        plan = move_group.go(wait=True)
+
+        waypoints.append(copy.deepcopy(wpose))
+
+        sweep_height = 0.02
+
+        for i in range(1, 1):
+            tpose = copy.deepcopy(wpose)
+            if(i%2 == 0):
+                tpose.position.y += 0.1     
+                tpose.position.z -= sweep_height
+            else:
+                tpose.position.y -= 0.1 
+                tpose.position.z -= sweep_height
+            waypoints.append(tpose)
+        
+        (plan, fraction) = move_group.compute_cartesian_path(
+            waypoints, 0.01, 1.0, True  # waypoints to follow  # eef_step
+        )  # jump_threshold
+
+        self.move_group.execute(plan, wait=True)
+
+        # Note: We are just planning, not asking move_group to actually move the robot yet:
+        return plan, fraction
 
     def execute_plan(self, plan):
         # Copy class variables to local variables to make the web tutorials more clear.
@@ -362,29 +388,55 @@ class MoveGroupPythonInterfaceTutorial(object):
     def buildSolarPanel(self, timeout=4):
         # ==============================
         #
-        #
+        
         print("Building terrain...")
         box1_pose = geometry_msgs.msg.PoseStamped()
         box1_pose.header.frame_id = 'panda_link0'
-        box1_pose.pose.position.x = 0.8
+        box1_pose.pose.position.x = 0.55
         box1_pose.pose.position.y = 0.0
         box1_pose.pose.position.z = 0.5
       
-        q = quaternion_from_euler(0, degToRad(60), 0)
+        q = quaternion_from_euler(0, degToRad(70), 0)
         box1_pose.pose.orientation.x = q[0]
         box1_pose.pose.orientation.y = q[1]
         box1_pose.pose.orientation.z = q[2]
         box1_pose.pose.orientation.w = q[3]
-
-        self.scene.add_box('table1', box1_pose, size=(0.06, 1, 1))
+        
+        self.scene.add_box('table1', box1_pose, size=(0.03, 0.4, 0.4))
 
         box2_pose = geometry_msgs.msg.PoseStamped()
         box2_pose.header.frame_id = 'panda_link0'
-        box2_pose.pose.position.x = 0.8
+        box2_pose.pose.position.x = 0.5
         box2_pose.pose.position.y = 0.0
         box2_pose.pose.position.z = 0.18
 
-        self.scene.add_box('table2', box2_pose, size=(0.2, 0.2, 0.4))
+        self.scene.add_box('table2', box2_pose, size=(0.1, 0.1, 0.4))
+
+        box3_pose = geometry_msgs.msg.PoseStamped()
+        box3_pose.header.frame_id = 'panda_hand'
+        box3_pose.pose.position.x = 0.0
+        box3_pose.pose.position.y = 0.0
+        box3_pose.pose.position.z = 0.1
+
+        self.scene.add_box('eefBase', box3_pose, size=(0.07, 0.06, 0.05))        
+
+        box4_pose = geometry_msgs.msg.PoseStamped()
+        box4_pose.header.frame_id = 'panda_hand'
+        box4_pose.pose.position.x = 0.0
+        box4_pose.pose.position.y = 0.0
+        box4_pose.pose.position.z = 0.12
+
+        roller1_pose = geometry_msgs.msg.PoseStamped()
+        roller1_pose.header.frame_id = 'panda_hand'
+        roller1_pose.pose.position.x = 0.0
+        roller1_pose.pose.position.y = 0.0
+        roller1_pose.pose.position.z = 0.135
+
+        self.scene.add_box('eefBase', box3_pose, size=(0.07, 0.06, 0.05))    
+
+        self.scene.add_box('eefWiper', box4_pose, size=(0.1, 0.3, 0.01))
+
+        self.scene.add_box('roller1', roller1_pose, size=(0.03, 0.3, 0.02))
     
     def attach_box(self, timeout=4):
         # Copy class variables to local variables to make the web tutorials more clear.
@@ -408,7 +460,9 @@ class MoveGroupPythonInterfaceTutorial(object):
         ## you should change this value to the name of your end effector group name.
         grasping_group = "panda_hand"
         touch_links = robot.get_link_names(group=grasping_group)
-        scene.attach_box(eef_link, 'obj', touch_links=touch_links)
+        scene.attach_box(eef_link, 'eefBase', touch_links=touch_links)
+        scene.attach_box(eef_link, 'eefWiper', touch_links=touch_links)
+        scene.attach_box(eef_link, 'roller1', touch_links=touch_links)
         ## END_SUB_TUTORIAL
 
         # We wait for the planning scene to update.
@@ -437,6 +491,7 @@ class MoveGroupPythonInterfaceTutorial(object):
             box_is_known=True, box_is_attached=False, timeout=timeout
         )
 
+
 def main():
     try:
         viz = MoveGroupPythonInterfaceTutorial()
@@ -444,32 +499,49 @@ def main():
 
         #Clear world
         viz.removeEverythingFromTheWorld()
-        # viz.removeEverythingFromTheWorld()
         
         #Put back objects
         viz.buildSolarPanel()
+
+        viz.attach_box()
 
         # Go to start position     
         viz.joint_goal()
 
         rospy.sleep(1)
+
+        # viz.setEefAngle(115)
+        viz.joint_goal(0, -45, 0, -121, -5, 90, 45)
         
-        [cartPathPlan, fraction] = viz.plan_cartesian_path(1, 0.3, 0.1, 0.1)
-        viz.execute_plan(cartPathPlan)
+        viz.joint_goal(0, -2, 0, -95, 0, 132, 45)
 
-        rospy.sleep(1)
+        viz.joint_goal(0, -22, 0, -120, 0, 135, 45)
 
-        # viz.joint_goal(39, -66, 13, -135, 6, 110, 54)
+        viz.joint_goal(0, -34, 0, -129, 0, 120, 45)
+        
+        # Go to top left of the panel
+        # [cartPathPlan, fraction] = viz.plan_cartesian_path(1, 1.0, 0.9, 0.6)
+        # viz.execute_plan(cartPathPlan)
 
-        # rospy.sleep(1)
+        viz.joint_goal(0, -51, 0, -144, 0, 112, 45)
+  
+        # Zig-zag downward until bottom of panel is reached
+        # viz.plan_solar_sweep()
+        # viz.execute_plan(cartPathPlan)
 
-        [cartPathPlan, fraction] = viz.plan_cartesian_path(1, 0, -1.0, 0)
-        viz.execute_plan(cartPathPlan)
+        
 
-        rospy.sleep(1)
+        # [cartPathPlan2, fraction] = viz.plan_cartesian_path(1, 1.0, 0.45, 0.3)
+        # viz.execute_plan(cartPathPlan2)
+     
 
-        [cartPathPlan, fraction] = viz.plan_cartesian_path(1, -0.1, 0.5, 0)
-        viz.execute_plan(cartPathPlan)
+        # end of zig-zag
+
+        # Reset position
+        viz.joint_goal()
+
+
+        print("DONE")
 
     except rospy.ROSInterruptException:
         return
