@@ -277,7 +277,7 @@ class MoveGroupPythonInterfaceTutorial(object):
             box_is_attached=False, box_is_known=False, timeout=timeout
         )
     
-    def buildSolarPanel(self, timeout=4):
+    def buildEnvironment(self, timeout=4):
         # ==============================
         # Create objects in the world
         # ==============================
@@ -301,7 +301,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         box2_pose.header.frame_id = 'panda_link0'
         box2_pose.pose.position.x = 0.5
         box2_pose.pose.position.y = 0.0
-        box2_pose.pose.position.z = 0.18
+        box2_pose.pose.position.z = 0.25
 
         self.scene.add_box('table2', box2_pose, size=(0.1, 0.1, 0.4))
 
@@ -319,7 +319,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         box4_pose.pose.position.y = 0.0
         box4_pose.pose.position.z = 0.12
 
-        self.scene.add_box('eefWiper', box4_pose, size=(0.1, 0.3, 0.01))
+        self.scene.add_box('eefWiper', box4_pose, size=(0.1, 0.5, 0.01))
 
         roller1_pose = geometry_msgs.msg.PoseStamped()
         roller1_pose.header.frame_id = 'panda_hand'
@@ -327,7 +327,7 @@ class MoveGroupPythonInterfaceTutorial(object):
         roller1_pose.pose.position.y = 0.0
         roller1_pose.pose.position.z = 0.135     
 
-        self.scene.add_box('roller1', roller1_pose, size=(0.03, 0.3, 0.02))
+        self.scene.add_box('roller1', roller1_pose, size=(0.03, 0.5, 0.02))
     
     def attach_box(self, timeout=4):
         # Copy class variables to local variables to make the web tutorials more clear.
@@ -392,7 +392,7 @@ def main():
         viz.removeEverythingFromTheWorld()
         
         #Put back objects
-        viz.buildSolarPanel()
+        viz.buildEnvironment()
 
         viz.attach_box()
 
